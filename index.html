@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Eleven Eleven - Jackpot Ticker</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width: 100vw; height: 100vh;
+    background: #000;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    cursor: none;
+  }
+
+  #stage {
+    width: 100vw; height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-evenly;
+    gap: 1.5vw;
+    padding-top: 4vh;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .column {
+    flex: 1 1 0; min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+  }
+
+  .bg-glow {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(212,175,55,0.06) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .col-label {
+    font-size: 2.2vw;
+    font-weight: 700;
+    letter-spacing: 0.6vw;
+    text-transform: uppercase;
+    margin-bottom: 0.6vw;
+    color: var(--c, #d4af37);
+    text-shadow: 0 0 18px var(--c, #d4af37);
+  }
+
+  .col-caption {
+    margin-top: 1vw;
+    font-size: 1.5vw;
+    letter-spacing: 0.15vw;
+    text-transform: uppercase;
+    color: #aaa;
+  }
+
+  .col-window {
+    margin-top: 0.3vw;
+    font-size: 1.1vw;
+    color: #ffb347;
+    font-weight: 600;
+  }
+  .col-window:empty { display: none; }
+
+  .col-eligibility {
+    margin-top: 0.5vw;
+    font-size: 1.5vw;
+    color: #999;
+    font-weight: 600;
+  }
+
+  .col-prize {
+    margin-top: 0.4vw;
+    font-size: 1.3vw;
+    color: var(--c, #d4af37);
+    font-weight: 700;
+  }
+
+  .col-frame {
+    padding: 0.6vw 1vw;
+    border: 3px solid var(--c, #d4af37);
+    border-radius: 1vw;
+    background: linear-gradient(180deg, #111 0%, #000 60%, #111 100%);
+    box-shadow: 0 0 40px var(--c, #d4af37), inset 0 0 25px rgba(0,0,0,0.8);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .col-number {
+    font-size: 3.2vw;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+    text-shadow: 0 0 20px var(--c, #d4af37), 0 0 55px var(--c, #d4af37);
+    letter-spacing: 0.05vw;
+    text-align: center;
+    transition: transform 0.15s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .col-number.bump { transform: scale(1.06); }
+
+  .col-frame.pulse {
+    animation: framePulse 1.4s ease-in-out infinite;
+  }
+  .col-frame.urgent {
+    animation: framePulseUrgent 0.6s ease-in-out infinite;
+  }
+  @keyframes framePulseUrgent {
+    0%, 100% { box-shadow: 0 0 45px var(--c, #d4af37), inset 0 0 25px rgba(0,0,0,0.8); }
+    50% { box-shadow: 0 0 90px var(--c, #d4af37), inset 0 0 45px rgba(0,0,0,0.4); }
+  }
+  @keyframes framePulse {
+    0%, 100% { box-shadow: 0 0 40px var(--c, #d4af37), inset 0 0 25px rgba(0,0,0,0.8); }
+    50% { box-shadow: 0 0 65px var(--c, #d4af37), inset 0 0 35px rgba(0,0,0,0.6); }
+  }
+
+  #panel {
+    position: fixed; bottom: 16px; left: 16px;
+    z-index: 99;
+    background: rgba(20,20,20,0.94);
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #aaa;
+    font-size: 12px;
+    display: none;
+    gap: 8px;
+    flex-direction: column;
+    max-width: 380px;
+  }
+  #panel.open { display: flex; }
+  #panel input, #panel button {
+    font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid #444;
+    background: #111; color: #eee;
+  }
+  #panel button { cursor: pointer; }
+  #panel .row { display:flex; gap:6px; align-items:center; flex-wrap: wrap; }
+  #status { color:#7a7; font-size:11px; }
+</style>
+</head>
+<body>
+
+  <div id="stage">
+    <div class="bg-glow"></div>
+
+    <div class="column">
+      <div class="col-label" id="minorLabel" style="--c:#d4af37">MINOR</div>
+      <div class="col-frame" style="--c:#d4af37">
+        <div class="col-number" id="minorNumber" style="--c:#d4af37">-</div>
+      </div>
+      <div class="col-caption">max time remaining</div>
+      <div class="col-window" id="minorWindow"></div>
+      <div class="col-eligibility" id="minorEligibility"></div>
+      <div class="col-prize" id="minorPrize"></div>
+    </div>
+
+    <div class="column">
+      <div class="col-label" id="majorLabel" style="--c:#ff7a1a">MAJOR</div>
+      <div class="col-frame" style="--c:#ff7a1a">
+        <div class="col-number" id="majorNumber" style="--c:#ff7a1a">-</div>
+      </div>
+      <div class="col-caption">max time remaining</div>
+      <div class="col-window" id="majorWindow"></div>
+      <div class="col-eligibility" id="majorEligibility"></div>
+      <div class="col-prize" id="majorPrize"></div>
+    </div>
+
+    <div class="column">
+      <div class="col-label" id="grandLabel" style="--c:#ff1744">GRAND</div>
+      <div class="col-frame pulse" style="--c:#ff1744">
+        <div class="col-number" id="grandNumber" style="--c:#ff1744">-</div>
+      </div>
+      <div class="col-caption">max time remaining</div>
+      <div class="col-window" id="grandWindow"></div>
+      <div class="col-eligibility" id="grandEligibility"></div>
+      <div class="col-prize" id="grandPrize"></div>
+    </div>
+  </div>
+
+  <div id="panel">
+    <div class="row">
+      <label>Config endpoint (n8n /jackpot-config)</label>
+      <input id="configUrl" type="text" placeholder="https://.../jackpot-config" style="width:260px">
+    </div>
+    <div class="row">
+      <label>Live numbers endpoint</label>
+      <input id="liveUrl" type="text" placeholder="https://.../jackpot-live-numbers" style="width:260px">
+      <button id="connectBtn">Connect</button>
+    </div>
+    <div id="status">idle - press t to toggle this panel</div>
+  </div>
+
+<script>
+(function () {
+  const els = {
+    minor: document.getElementById('minorNumber'),
+    major: document.getElementById('majorNumber'),
+    grand: document.getElementById('grandNumber')
+  };
+  const windowEls = {
+    minor: document.getElementById('minorWindow'),
+    major: document.getElementById('majorWindow'),
+    grand: document.getElementById('grandWindow')
+  };
+  const labelEls = {
+    minor: document.getElementById('minorLabel'),
+    major: document.getElementById('majorLabel'),
+    grand: document.getElementById('grandLabel')
+  };
+  const statusEl = document.getElementById('status');
+  const panel = document.getElementById('panel');
+
+  // remainingSeconds[tier] is a local float that ticks down once per real
+  // second. null means "not enough data yet" (still calculating).
+  const remainingSeconds = { minor: null, major: null, grand: null };
+  // tierStatus[tier] is 'countdown' or 'winner' — controls what tickCountdown renders
+  const tierStatus = { minor: 'countdown', major: 'countdown', grand: 'countdown' };
+  const winnerTable = { minor: null, major: null, grand: null };
+
+  const MAX_DISPLAY_HOURS = 99;
+
+  function formatCountdown(totalSeconds) {
+    if (totalSeconds === null) return '-';
+    const s = Math.max(0, Math.round(totalSeconds));
+    if (s <= 0) return 'ANY MOMENT';
+    const h = Math.floor(s / 3600);
+    if (h >= MAX_DISPLAY_HOURS) return MAX_DISPLAY_HOURS + 'h+';
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+    return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+  }
+
+  function bump(tier) {
+    els[tier].classList.remove('bump');
+    void els[tier].offsetWidth;
+    els[tier].classList.add('bump');
+  }
+
+  // Ticks every real second — this is what makes it an actual countdown,
+  // not just a number that updates only when a poll happens to land.
+  const frameEls = {
+    minor: document.querySelector('#minorNumber').parentElement,
+    major: document.querySelector('#majorNumber').parentElement,
+    grand: document.querySelector('#grandNumber').parentElement
+  };
+  const URGENT_THRESHOLD_SECONDS = 300; // last 5 minutes get a faster, brighter pulse
+
+  function tickCountdown() {
+    for (const tier of ['minor', 'major', 'grand']) {
+      if (tierStatus[tier] === 'winner') {
+        els[tier].innerHTML = '&#127942; TABLE ' + (winnerTable[tier] || '?');
+        frameEls[tier].classList.remove('urgent');
+        continue;
+      }
+      if (tierStatus[tier] === 'closed') {
+        els[tier].textContent = 'CLOSED';
+        frameEls[tier].classList.remove('urgent');
+        continue;
+      }
+      if (remainingSeconds[tier] !== null && remainingSeconds[tier] > 0) {
+        remainingSeconds[tier] -= 1;
+      }
+      els[tier].textContent = formatCountdown(remainingSeconds[tier]);
+
+      const isUrgent = remainingSeconds[tier] !== null && remainingSeconds[tier] > 0 && remainingSeconds[tier] <= URGENT_THRESHOLD_SECONDS;
+      frameEls[tier].classList.toggle('urgent', isUrgent);
+    }
+  }
+  setInterval(tickCountdown, 1000);
+
+  async function fetchLiveNumbers(url) {
+    if (!url) return;
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      const data = await res.json();
+      const MAX_CORRECTION_FRACTION = 0.10;
+      for (const tier of ['minor', 'major', 'grand']) {
+        const status = data[tier + '_status'] || 'countdown';
+        tierStatus[tier] = status;
+
+        if (status === 'winner') {
+          winnerTable[tier] = data[tier + '_winner_table'];
+          windowEls[tier].textContent = '';
+          bump(tier);
+          continue;
+        }
+        if (status === 'closed') {
+          windowEls[tier].textContent = '';
+        }
+
+        const newEta = data[tier + '_eta_seconds'];
+        if (newEta === null || newEta === undefined) {
+          remainingSeconds[tier] = null;
+          continue;
+        }
+        if (remainingSeconds[tier] === null) {
+          // first real reading — nothing to ease from, just take it
+          remainingSeconds[tier] = newEta;
+        } else if (newEta < remainingSeconds[tier]) {
+          // Server confirms real progress since our last local tick —
+          // ease DOWN toward it. Never correct upward: the local ticking
+          // between polls is itself correct (real seconds are passing),
+          // so a stale-but-not-yet-updated server value should never pull
+          // the display back up.
+          const diff = newEta - remainingSeconds[tier];
+          remainingSeconds[tier] += diff * MAX_CORRECTION_FRACTION;
+        }
+
+        const windowClosesIn = data[tier + '_window_closes_in_seconds'];
+        if (status === 'countdown' && windowClosesIn !== null && windowClosesIn !== undefined) {
+          windowEls[tier].textContent = "Tonight's window closes in " + formatCountdown(windowClosesIn);
+        } else if (status === 'countdown') {
+          windowEls[tier].textContent = '';
+        }
+
+        bump(tier);
+      }
+      statusEl.textContent = 'Live - last update ' + new Date().toLocaleTimeString();
+    } catch (err) {
+      statusEl.textContent = 'Live numbers error: ' + err.message;
+    }
+  }
+
+  let liveTimer = null;
+  let configTimer = null;
+  let activeHoursCheckTimer = null;
+  let CONFIG = { live_ticker_polling_seconds: 10, active_hours_start: null, active_hours_end: null };
+
+  function toMinutesLocal(hhmm) {
+    const [h, m] = String(hhmm).split(':').map(Number);
+    return h * 60 + m;
+  }
+  function isWithinActiveHours() {
+    if (!CONFIG.active_hours_start || !CONFIG.active_hours_end) return true; // guard disabled
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const start = toMinutesLocal(CONFIG.active_hours_start);
+    const end = toMinutesLocal(CONFIG.active_hours_end);
+    if (start <= end) return nowMinutes >= start && nowMinutes <= end;
+    return nowMinutes >= start || nowMinutes <= end; // wraps midnight
+  }
+
+  function startLiveNumbersLoop(liveUrl) {
+    fetchLiveNumbers(liveUrl);
+    const pollMs = (CONFIG.live_ticker_polling_seconds || 10) * 1000;
+    liveTimer = setInterval(() => fetchLiveNumbers(liveUrl), pollMs);
+  }
+
+  // Checks every 60s whether we've entered/left the active window, and
+  // starts/stops live-number polling accordingly — no polling at all
+  // outside business hours.
+  function watchActiveHours(liveUrl) {
+    if (activeHoursCheckTimer) clearInterval(activeHoursCheckTimer);
+    activeHoursCheckTimer = setInterval(() => {
+      const active = isWithinActiveHours();
+      if (active && !liveTimer) {
+        statusEl.textContent = 'Entering active hours - connecting';
+        startLiveNumbersLoop(liveUrl);
+      } else if (!active && liveTimer) {
+        clearInterval(liveTimer);
+        liveTimer = null;
+        statusEl.textContent = 'Outside active hours - idle, not polling';
+      }
+    }, 60 * 1000);
+  }
+
+  async function startPolling(liveUrl, configUrl) {
+    stopPolling();
+    if (configUrl) {
+      await fetchConfigFull(configUrl); // wait so active_hours / poll interval are known
+      configTimer = setInterval(() => fetchConfigFull(configUrl), 5 * 60 * 1000);
+    }
+    watchActiveHours(liveUrl);
+    if (isWithinActiveHours()) {
+      startLiveNumbersLoop(liveUrl);
+    } else {
+      statusEl.textContent = 'Outside active hours - idle, not polling';
+    }
+  }
+  function stopPolling() {
+    if (liveTimer) clearInterval(liveTimer);
+    if (configTimer) clearInterval(configTimer);
+    if (activeHoursCheckTimer) clearInterval(activeHoursCheckTimer);
+    liveTimer = null; configTimer = null; activeHoursCheckTimer = null;
+  }
+
+  // Wraps the existing fetchConfig() (which just updates labels) so we also
+  // capture the polling/active-hours settings into CONFIG.
+  const eligibilityEls = {
+    minor: document.getElementById('minorEligibility'),
+    major: document.getElementById('majorEligibility'),
+    grand: document.getElementById('grandEligibility')
+  };
+
+  function updateEligibilityCaptions(data) {
+    const mode = data.pool_win_eligibility || 'any_active_table';
+    for (const tier of ['minor', 'major', 'grand']) {
+      const t = (data.tiers && data.tiers[tier]) || {};
+      if (mode === 'min_spend_threshold' && t.min_spend_gel > 0) {
+        eligibilityEls[tier].textContent = 'Eligible tables: ' + t.min_spend_gel + '+ GEL spent tonight';
+      } else {
+        eligibilityEls[tier].textContent = 'Eligible tables: any open table';
+      }
+    }
+  }
+
+  async function fetchConfigFull(url) {
+    if (!url) return;
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      const data = await res.json();
+      if (data) {
+        CONFIG = { ...CONFIG, ...data };
+        if (data.tiers) {
+          if (data.tiers.minor?.label) labelEls.minor.textContent = data.tiers.minor.label;
+          if (data.tiers.major?.label) labelEls.major.textContent = data.tiers.major.label;
+          if (data.tiers.grand?.label) labelEls.grand.textContent = data.tiers.grand.label;
+        }
+        updateEligibilityCaptions(data);
+      }
+    } catch (err) {
+      statusEl.textContent = 'Config error: ' + err.message;
+    }
+  }
+
+  document.getElementById('connectBtn').addEventListener('click', () => {
+    const configUrl = document.getElementById('configUrl').value.trim();
+    const liveUrl = document.getElementById('liveUrl').value.trim();
+    startPolling(liveUrl, configUrl);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 't') panel.classList.toggle('open');
+  });
+
+  const params = new URLSearchParams(location.search);
+  if (params.get('config')) document.getElementById('configUrl').value = params.get('config');
+  if (params.get('live')) document.getElementById('liveUrl').value = params.get('live');
+  if (params.get('config') && params.get('live')) {
+    startPolling(params.get('live'), params.get('config'));
+  }
+})();
+</script>
+</body>
+</html>
