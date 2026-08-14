@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Eleven Eleven - Jackpot Ticker</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width: 100vw; height: 100vh;
+    background: #000;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    cursor: none;
+  }
+
+  #stage {
+    width: 100vw; height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-evenly;
+    gap: 1.5vw;
+    padding-top: 4vh;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .column {
+    flex: 1 1 0; min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+  }
+
+  .bg-glow {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(212,175,55,0.06) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .col-label {
+    font-size: 2.2vw;
+    font-weight: 700;
+    letter-spacing: 0.6vw;
+    text-transform: uppercase;
+    margin-bottom: 0.6vw;
+    color: var(--c, #d4af37);
+    text-shadow: 0 0 18px var(--c, #d4af37);
+  }
+
+  .col-caption {
+    margin-top: 1vw;
+    font-size: 1.5vw;
+    letter-spacing: 0.15vw;
+    text-transform: uppercase;
+    color: #aaa;
+  }
+
+  .col-window-wrap { margin-top: 0.8vw; display: none; flex-direction: column; align-items: center; }
+  .col-window-wrap.show { display: flex; }
+  .col-window-label {
+    font-size: 0.9vw;
+    letter-spacing: 0.3vw;
+    text-transform: uppercase;
+    color: #ffb347;
+    margin-bottom: 0.3vw;
+  }
+  .col-window-frame {
+    padding: 0.3vw 0.8vw;
+    border: 2px solid #ffb347;
+    border-radius: 0.6vw;
+    background: linear-gradient(180deg, #1a1204 0%, #000 60%, #1a1204 100%);
+    box-shadow: 0 0 18px rgba(255,179,71,0.5);
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .col-window-number {
+    font-size: 1.8vw;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    color: #ffb347;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .col-carry {
+    display: none;
+    margin-top: 0.35vw;
+    font-size: 1.05vw;
+    letter-spacing: 0.08vw;
+    color: #888;
+  }
+  .col-carry.show { display: block; }
+
+  .col-eligibility {
+    margin-top: 0.5vw;
+    font-size: 1.5vw;
+    color: #999;
+    font-weight: 600;
+  }
+
+  .col-frame {
+    padding: 0.6vw 1vw;
+    border: 3px solid var(--c, #d4af37);
+    border-radius: 1vw;
+    background: linear-gradient(180deg, #111 0%, #000 60%, #111 100%);
+    box-shadow: 0 0 40px var(--c, #d4af37), inset 0 0 25px rgba(0,0,0,0.8);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .col-number {
+    font-size: 3.2vw;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+    text-shadow: 0 0 20px var(--c, #d4af37), 0 0 55px var(--c, #d4af37);
+    letter-spacing: 0.05vw;
+    text-align: center;
+    transition: transform 0.15s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .col-number.bump { transform: scale(1.06); }
+
+  #panel {
+    position: fixed; bottom: 16px; left: 16px;
+    z-index: 99;
+    background: rgba(20,20,20,0.94);
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #aaa;
+    font-size: 12px;
+    display: none;
+    gap: 8px;
+    flex-direction: column;
+    max-width: 380px;
+  }
+  #panel.open { display: flex; }
+  #panel input, #panel button {
+    font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid #444;
+    background: #111; color: #eee;
+  }
+  #panel button { cursor: pointer; }
+  #panel .row { display:flex; gap:6px; align-items:center; flex-wrap: wrap; }
+  #status { color:#7a7; font-size:11px; }
+</style>
+</head>
+<body>
+
+  <div id="stage">
+    <div class="bg-glow"></div>
+
+    <div class="column">
+      <div class="col-label" id="minorLabel" style="--c:#d4af37">MINOR</div>
+      <div class="col-frame" style="--c:#d4af37">
+        <div class="col-number" id="minorNumber" style="--c:#d4af37">-</div>
+      </div>
+      <div class="col-caption">max time remaining</div>
+      <div class="col-window-wrap" id="minorWindowWrap">
+        <div class="col-window-label">time left tonight</div>
+        <div class="col-window-frame"><div class="col-window-number" id="minorWindow"></div></div>
+      </div>
+      <div class="col-carry" id="minorCarry">Continues next night</div>
+      <div class="col-eligibility" id="minorEligibility"></div>
+    </div>
+
+    <div class="column">
+      <div class="col-label" id="majorLabel" style="--c:#ff7a1a">MAJOR</div>
+      <div class="col-frame" style="--c:#ff7a1a">
+        <div class="col-number" id="majorNumber" style="--c:#ff7a1a">-</div>
+      </div>
+      <div class="col-caption">max time remaining</div>
+      <div class="col-window-wrap" id="majorWindowWrap">
+        <div class="col-window-label">time left tonight</div>
+        <div class="col-window-frame"><div class="col-window-number" id="majorWindow"></div></div>
+      </div>
+      <div class="col-carry" id="majorCarry">Continues next night</div>
+      <div class="col-eligibility" id="majorEligibility"></div>
+    </div>
+
+    <div class="column">
+      <div class="col-label" id="grandLabel" style="--c:#ff1744">GRAND</div>
+      <div class="col-frame" style="--c:#ff1744">
+        <div class="col-number" id="grandNumber" style="--c:#ff1744">-</div>
+      </div>
+      <div class="col-caption">max time remaining</div>
+      <div class="col-window-wrap" id="grandWindowWrap">
+        <div class="col-window-label">time left tonight</div>
+        <div class="col-window-frame"><div class="col-window-number" id="grandWindow"></div></div>
+      </div>
+      <div class="col-carry" id="grandCarry">Continues next night</div>
+      <div class="col-eligibility" id="grandEligibility"></div>
+    </div>
+  </div>
+
+  <div id="panel">
+    <div class="row">
+      <label>Config endpoint (n8n /jackpot-config)</label>
+      <input id="configUrl" type="text" placeholder="https://.../jackpot-config" style="width:260px">
+    </div>
+    <div class="row">
+      <label>Live numbers endpoint</label>
+      <input id="liveUrl" type="text" placeholder="https://.../jackpot-live-numbers" style="width:260px">
+      <button id="connectBtn">Connect</button>
+    </div>
+    <div id="status">idle - press t to toggle this panel</div>
+  </div>
+
+<script>
+(function () {
+  const els = {
+    minor: document.getElementById('minorNumber'),
+    major: document.getElementById('majorNumber'),
+    grand: document.getElementById('grandNumber')
+  };
+  const windowEls = {
+    minor: document.getElementById('minorWindow'),
+    major: document.getElementById('majorWindow'),
+    grand: document.getElementById('grandWindow')
+  };
+  const windowWrapEls = {
+    minor: document.getElementById('minorWindowWrap'),
+    major: document.getElementById('majorWindowWrap'),
+    grand: document.getElementById('grandWindowWrap')
+  };
+  const carryEls = {
+    minor: document.getElementById('minorCarry'),
+    major: document.getElementById('majorCarry'),
+    grand: document.getElementById('grandCarry')
+  };
+  const labelEls = {
+    minor: document.getElementById('minorLabel'),
+    major: document.getElementById('majorLabel'),
+    grand: document.getElementById('grandLabel')
+  };
+  const statusEl = document.getElementById('status');
+  const panel = document.getElementById('panel');
+
+  // Last canonical server snapshot per tier. Local ticks only project
+  // this payload; they never invent status or treat 00:00 as an event.
+  const snap = {
+    minor: null,
+    major: null,
+    grand: null
+  };
+
+  // Display-only countdown floor per tier. A new poll may lower the shown
+  // remaining time; it must never raise it. Cleared when status leaves
+  // active (winner / closed). Persisted so a refresh cannot raise the number.
+  const HELD_STORAGE_KEY = 'jackpot.ticker.heldCountdown';
+  const heldCountdown = {
+    minor: null,
+    major: null,
+    grand: null
+  };
+
+  function persistHeldCountdown() {
+    try {
+      localStorage.setItem(HELD_STORAGE_KEY, JSON.stringify(heldCountdown));
+    } catch (e) {}
+  }
+
+  function loadHeldCountdown() {
+    try {
+      const raw = localStorage.getItem(HELD_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return;
+      for (const tier of ['minor', 'major', 'grand']) {
+        const v = parsed[tier];
+        if (
+          v &&
+          typeof v.seconds === 'number' && Number.isFinite(v.seconds) &&
+          typeof v.atMs === 'number' && Number.isFinite(v.atMs)
+        ) {
+          heldCountdown[tier] = { seconds: v.seconds, atMs: v.atMs };
+        }
+      }
+    } catch (e) {}
+  }
+  loadHeldCountdown();
+
+  const MAX_DISPLAY_HOURS = 99;
+
+  function normalizeStatus(raw) {
+    if (raw === 'countdown') return 'active';
+    if (raw === 'active' || raw === 'closed' || raw === 'winner') return raw;
+    return null;
+  }
+
+  function projectedSeconds(value, receivedAtMs) {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) return null;
+    return Number(value) - (Date.now() - receivedAtMs) / 1000;
+  }
+
+  function clearHeldCountdown(tier) {
+    heldCountdown[tier] = null;
+    persistHeldCountdown();
+  }
+
+  function monotonicRemaining(tier, raw) {
+    const now = Date.now();
+    const prev = heldCountdown[tier];
+    const held = (prev && prev.seconds !== null && prev.seconds !== undefined)
+      ? prev.seconds - (now - prev.atMs) / 1000
+      : null;
+
+    let shown;
+    if (raw === null && held === null) shown = null;
+    else if (raw === null) shown = held;
+    else if (held === null) shown = raw;
+    else shown = Math.min(raw, held);
+
+    heldCountdown[tier] = (shown === null) ? null : { seconds: shown, atMs: now };
+    return shown;
+  }
+
+  function formatCountdown(totalSeconds) {
+    if (totalSeconds === null || totalSeconds <= 0) return '-';
+    const s = Math.round(totalSeconds);
+    if (s <= 0) return '-';
+    const h = Math.floor(s / 3600);
+    if (h >= MAX_DISPLAY_HOURS) return MAX_DISPLAY_HOURS + 'h+';
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+    return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+  }
+
+  function bump(tier) {
+    els[tier].classList.remove('bump');
+    void els[tier].offsetWidth;
+    els[tier].classList.add('bump');
+  }
+
+  const frameEls = {
+    minor: document.querySelector('#minorNumber').parentElement,
+    major: document.querySelector('#majorNumber').parentElement,
+    grand: document.querySelector('#grandNumber').parentElement
+  };
+
+  function hideCarry(tier) {
+    carryEls[tier].classList.remove('show');
+  }
+
+  function renderTier(tier) {
+    const s = snap[tier];
+    if (!s) {
+      els[tier].textContent = '-';
+      windowWrapEls[tier].classList.remove('show');
+      hideCarry(tier);
+      return null;
+    }
+    if (s.status === 'winner') {
+      clearHeldCountdown(tier);
+      els[tier].innerHTML = '&#127942; TABLE ' + (s.winnerTable || '?');
+      windowWrapEls[tier].classList.remove('show');
+      hideCarry(tier);
+      return null;
+    }
+    if (s.status === 'closed') {
+      clearHeldCountdown(tier);
+      els[tier].textContent = 'CLOSED';
+      windowWrapEls[tier].classList.remove('show');
+      hideCarry(tier);
+      return null;
+    }
+
+    const remaining = monotonicRemaining(
+      tier,
+      projectedSeconds(s.etaSeconds, s.receivedAtMs)
+    );
+    persistHeldCountdown();
+    els[tier].textContent = formatCountdown(remaining);
+
+    const windowRemaining = projectedSeconds(s.windowSeconds, s.receivedAtMs);
+    if (windowRemaining === null || windowRemaining <= 0) {
+      windowWrapEls[tier].classList.remove('show');
+    } else {
+      windowWrapEls[tier].classList.add('show');
+      windowEls[tier].textContent = formatCountdown(windowRemaining);
+    }
+    if (
+      remaining !== null && remaining > 0 &&
+      windowRemaining !== null && remaining > windowRemaining
+    ) {
+      carryEls[tier].classList.add('show');
+    } else {
+      hideCarry(tier);
+    }
+    return remaining;
+  }
+
+  function tickCountdown() {
+    for (const tier of ['minor', 'major', 'grand']) {
+      renderTier(tier);
+    }
+  }
+  setInterval(tickCountdown, 1000);
+
+  const URGENCY_WINDOW_SECONDS = 30 * 60;
+  function getUrgency(tier) {
+    const s = snap[tier];
+    if (!s || s.status !== 'active') return 0;
+    const remaining = monotonicRemaining(
+      tier,
+      projectedSeconds(s.etaSeconds, s.receivedAtMs)
+    );
+    if (remaining === null || remaining <= 0) return 0;
+    return Math.max(0, Math.min(1, 1 - remaining / URGENCY_WINDOW_SECONDS));
+  }
+  function glowLoop(timestamp) {
+    for (const tier of ['minor', 'major', 'grand']) {
+      const urgency = getUrgency(tier);
+      const freqHz = 0.35 + urgency * 1.65;
+      const phase = (timestamp / 1000) * freqHz * Math.PI * 2;
+      const pulse = (Math.sin(phase) + 1) / 2;
+      const baseGlow = 40 + urgency * 15;
+      const glowAmplitude = 25 + urgency * 55;
+      const glow = Math.round(baseGlow + pulse * glowAmplitude);
+      const insetGlow = Math.round(glow * 0.6);
+      frameEls[tier].style.boxShadow = `0 0 ${glow}px var(--c), inset 0 0 ${insetGlow}px rgba(0,0,0,0.75)`;
+    }
+    requestAnimationFrame(glowLoop);
+  }
+  requestAnimationFrame(glowLoop);
+
+  async function fetchLiveNumbers(url) {
+    if (!url) return;
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      const data = await res.json();
+      const receivedAtMs = Date.now();
+      for (const tier of ['minor', 'major', 'grand']) {
+        const status = normalizeStatus(data[tier + '_status']);
+        if (!status) continue;
+
+        let eta = data[tier + '_eta_seconds'];
+        if (eta === null || eta === undefined || eta === '') eta = null;
+        else {
+          eta = Number(eta);
+          if (!Number.isFinite(eta) || eta <= 0) eta = null;
+        }
+
+        let windowSeconds = data[tier + '_window_closes_in_seconds'];
+        if (windowSeconds === null || windowSeconds === undefined || windowSeconds === '') {
+          windowSeconds = null;
+        } else {
+          windowSeconds = Number(windowSeconds);
+          if (!Number.isFinite(windowSeconds)) windowSeconds = null;
+        }
+
+        snap[tier] = {
+          status,
+          winnerTable: data[tier + '_winner_table'] || null,
+          etaSeconds: status === 'active' ? eta : null,
+          windowSeconds: status === 'active' ? windowSeconds : null,
+          receivedAtMs
+        };
+        bump(tier);
+      }
+      tickCountdown();
+      statusEl.textContent = 'Live - last update ' + new Date().toLocaleTimeString();
+    } catch (err) {
+      statusEl.textContent = 'Live numbers error: ' + err.message;
+    }
+  }
+
+  let liveTimer = null;
+  let configTimer = null;
+  let CONFIG = { live_ticker_polling_seconds: 10 };
+
+  function startLiveNumbersLoop(liveUrl) {
+    fetchLiveNumbers(liveUrl);
+    const pollMs = (CONFIG.live_ticker_polling_seconds || 10) * 1000;
+    liveTimer = setInterval(() => fetchLiveNumbers(liveUrl), pollMs);
+  }
+
+  async function startPolling(liveUrl, configUrl) {
+    stopPolling();
+    if (configUrl) {
+      await fetchConfigFull(configUrl);
+      configTimer = setInterval(() => fetchConfigFull(configUrl), 5 * 60 * 1000);
+    }
+    startLiveNumbersLoop(liveUrl);
+  }
+  function stopPolling() {
+    if (liveTimer) clearInterval(liveTimer);
+    if (configTimer) clearInterval(configTimer);
+    liveTimer = null;
+    configTimer = null;
+  }
+
+  const eligibilityEls = {
+    minor: document.getElementById('minorEligibility'),
+    major: document.getElementById('majorEligibility'),
+    grand: document.getElementById('grandEligibility')
+  };
+
+  function updateEligibilityCaptions(data) {
+    const mode = data.pool_win_eligibility || 'any_active_table';
+    for (const tier of ['minor', 'major', 'grand']) {
+      const t = (data.tiers && data.tiers[tier]) || {};
+      if (mode === 'min_spend_threshold' && t.min_spend_gel > 0) {
+        eligibilityEls[tier].textContent = 'Eligible from ' + t.min_spend_gel + ' GEL';
+      } else {
+        eligibilityEls[tier].textContent = 'Eligible tables: any open table';
+      }
+    }
+  }
+
+  async function fetchConfigFull(url) {
+    if (!url) return;
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      const data = await res.json();
+      if (data) {
+        CONFIG = { ...CONFIG, ...data };
+        if (data.tiers) {
+          if (data.tiers.minor?.label) labelEls.minor.textContent = data.tiers.minor.label;
+          if (data.tiers.major?.label) labelEls.major.textContent = data.tiers.major.label;
+          if (data.tiers.grand?.label) labelEls.grand.textContent = data.tiers.grand.label;
+        }
+        updateEligibilityCaptions(data);
+      }
+    } catch (err) {
+      statusEl.textContent = 'Config error: ' + err.message;
+    }
+  }
+
+  document.getElementById('connectBtn').addEventListener('click', () => {
+    const configUrl = document.getElementById('configUrl').value.trim();
+    const liveUrl = document.getElementById('liveUrl').value.trim();
+    startPolling(liveUrl, configUrl);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 't') panel.classList.toggle('open');
+  });
+
+  const params = new URLSearchParams(location.search);
+  if (params.get('config')) document.getElementById('configUrl').value = params.get('config');
+  if (params.get('live')) document.getElementById('liveUrl').value = params.get('live');
+  if (params.get('config') && params.get('live')) {
+    startPolling(params.get('live'), params.get('config'));
+  }
+})();
+</script>
+</body>
+</html>
