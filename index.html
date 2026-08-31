@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Eleven Eleven - Jackpot Ticker</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width: 100vw; height: 100vh;
+    background: #000;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    cursor: none;
+  }
+
+  #stage {
+    width: 100vw; height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-evenly;
+    gap: 1.5vw;
+    padding-top: 4vh;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .column {
+    flex: 1 1 0; min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+  }
+
+  .bg-glow {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(212,175,55,0.06) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .col-label {
+    font-size: 2.2vw;
+    font-weight: 700;
+    letter-spacing: 0.6vw;
+    text-transform: uppercase;
+    margin-bottom: 0.6vw;
+    color: var(--c, #d4af37);
+    text-shadow: 0 0 18px var(--c, #d4af37);
+  }
+
+  .col-caption {
+    display: none;
+    margin-top: 1vw;
+    font-size: 1.9vw;
+    font-weight: 700;
+    letter-spacing: 0.06vw;
+    text-transform: uppercase;
+    color: #ccc;
+  }
+  .col-caption.show { display: block; }
+
+  .col-window-wrap { margin-top: 0.8vw; display: none; flex-direction: column; align-items: center; }
+  .col-window-wrap.show { display: flex; }
+  .col-window-label {
+    font-size: 1.55vw;
+    font-weight: 700;
+    letter-spacing: 0.06vw;
+    text-transform: uppercase;
+    color: #ffb347;
+    margin-bottom: 0.35vw;
+  }
+  .col-window-frame {
+    padding: 0.3vw 0.8vw;
+    border: 2px solid #ffb347;
+    border-radius: 0.6vw;
+    background: linear-gradient(180deg, #1a1204 0%, #000 60%, #1a1204 100%);
+    box-shadow: 0 0 18px rgba(255,179,71,0.5);
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .col-window-number {
+    font-size: 2.2vw;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    color: #ffb347;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .col-carry {
+    display: none;
+    margin-top: 0.5vw;
+    font-size: 1.7vw;
+    font-weight: 800;
+    letter-spacing: 0.04vw;
+    text-transform: uppercase;
+    color: #ffc266;
+    text-shadow: 0 0 12px rgba(255, 194, 102, 0.45);
+    white-space: nowrap;
+  }
+  .col-carry.show { display: block; }
+
+  .col-eligibility {
+    margin-top: 0.6vw;
+    font-size: 1.9vw;
+    color: #bbb;
+    font-weight: 600;
+  }
+
+  .col-frame {
+    padding: 0.6vw 1vw;
+    border: 3px solid var(--c, #d4af37);
+    border-radius: 1vw;
+    background: linear-gradient(180deg, #111 0%, #000 60%, #111 100%);
+    box-shadow: 0 0 40px var(--c, #d4af37), inset 0 0 25px rgba(0,0,0,0.8);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .col-winner-label {
+    display: none;
+    font-size: 2.2vw;
+    font-weight: 800;
+    letter-spacing: 0.06vw;
+    text-transform: uppercase;
+    color: #fff;
+    text-align: center;
+    text-shadow: 0 0 14px var(--c, #d4af37), 0 0 36px var(--c, #d4af37);
+    line-height: 1.1;
+    margin-bottom: 0.2vw;
+    white-space: nowrap;
+  }
+  .col-winner-label.show { display: block; }
+
+  .col-number {
+    font-size: 3.2vw;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+    text-shadow: 0 0 20px var(--c, #d4af37), 0 0 55px var(--c, #d4af37);
+    letter-spacing: 0.05vw;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #panel {
+    position: fixed; bottom: 16px; left: 16px;
+    z-index: 99;
+    background: rgba(20,20,20,0.94);
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #aaa;
+    font-size: 12px;
+    display: none;
+    gap: 8px;
+    flex-direction: column;
+    max-width: 380px;
+  }
+  #panel.open { display: flex; }
+  #panel input, #panel button {
+    font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid #444;
+    background: #111; color: #eee;
+  }
+  #panel button { cursor: pointer; }
+  #panel .row { display:flex; gap:6px; align-items:center; flex-wrap: wrap; }
+  #status { color:#7a7; font-size:11px; }
+</style>
+</head>
+<body>
+
+  <div id="stage">
+    <div class="bg-glow"></div>
+
+    <div class="column">
+      <div class="col-label" id="minorLabel" style="--c:#d4af37">MINOR</div>
+      <div class="col-frame" style="--c:#d4af37">
+        <div class="col-winner-label" id="minorWinnerLabel">WINNER</div>
+        <div class="col-number" id="minorNumber" style="--c:#d4af37">-</div>
+      </div>
+      <div class="col-caption" id="minorCaption">TIME TO JACKPOT</div>
+      <div class="col-window-wrap" id="minorWindowWrap">
+        <div class="col-window-label">TIME LEFT TONIGHT</div>
+        <div class="col-window-frame"><div class="col-window-number" id="minorWindow"></div></div>
+      </div>
+      <div class="col-carry" id="minorCarry">CONTINUES NEXT EVENT</div>
+      <div class="col-eligibility" id="minorEligibility"></div>
+    </div>
+
+    <div class="column">
+      <div class="col-label" id="majorLabel" style="--c:#ff7a1a">MAJOR</div>
+      <div class="col-frame" style="--c:#ff7a1a">
+        <div class="col-winner-label" id="majorWinnerLabel">WINNER</div>
+        <div class="col-number" id="majorNumber" style="--c:#ff7a1a">-</div>
+      </div>
+      <div class="col-caption" id="majorCaption">TIME TO JACKPOT</div>
+      <div class="col-window-wrap" id="majorWindowWrap">
+        <div class="col-window-label">TIME LEFT TONIGHT</div>
+        <div class="col-window-frame"><div class="col-window-number" id="majorWindow"></div></div>
+      </div>
+      <div class="col-carry" id="majorCarry">CONTINUES NEXT EVENT</div>
+      <div class="col-eligibility" id="majorEligibility"></div>
+    </div>
+
+    <div class="column">
+      <div class="col-label" id="grandLabel" style="--c:#ff1744">GRAND</div>
+      <div class="col-frame" style="--c:#ff1744">
+        <div class="col-winner-label" id="grandWinnerLabel">WINNER</div>
+        <div class="col-number" id="grandNumber" style="--c:#ff1744">-</div>
+      </div>
+      <div class="col-caption" id="grandCaption">TIME TO JACKPOT</div>
+      <div class="col-window-wrap" id="grandWindowWrap">
+        <div class="col-window-label">TIME LEFT TONIGHT</div>
+        <div class="col-window-frame"><div class="col-window-number" id="grandWindow"></div></div>
+      </div>
+      <div class="col-carry" id="grandCarry">CONTINUES NEXT EVENT</div>
+      <div class="col-eligibility" id="grandEligibility"></div>
+    </div>
+  </div>
+
+  <div id="panel">
+    <div class="row">
+      <label>Config endpoint (n8n /jackpot-config)</label>
+      <input id="configUrl" type="text" placeholder="https://.../jackpot-config" style="width:260px">
+    </div>
+    <div class="row">
+      <label>Live numbers endpoint</label>
+      <input id="liveUrl" type="text" placeholder="https://.../jackpot-live-numbers" style="width:260px">
+      <button id="connectBtn">Connect</button>
+    </div>
+    <div id="status">idle - press t to toggle this panel</div>
+  </div>
+
+<script>
+(function () {
+  const els = {
+    minor: document.getElementById('minorNumber'),
+    major: document.getElementById('majorNumber'),
+    grand: document.getElementById('grandNumber')
+  };
+  const windowEls = {
+    minor: document.getElementById('minorWindow'),
+    major: document.getElementById('majorWindow'),
+    grand: document.getElementById('grandWindow')
+  };
+  const windowWrapEls = {
+    minor: document.getElementById('minorWindowWrap'),
+    major: document.getElementById('majorWindowWrap'),
+    grand: document.getElementById('grandWindowWrap')
+  };
+  const carryEls = {
+    minor: document.getElementById('minorCarry'),
+    major: document.getElementById('majorCarry'),
+    grand: document.getElementById('grandCarry')
+  };
+  const captionEls = {
+    minor: document.getElementById('minorCaption'),
+    major: document.getElementById('majorCaption'),
+    grand: document.getElementById('grandCaption')
+  };
+  const winnerLabelEls = {
+    minor: document.getElementById('minorWinnerLabel'),
+    major: document.getElementById('majorWinnerLabel'),
+    grand: document.getElementById('grandWinnerLabel')
+  };
+  const labelEls = {
+    minor: document.getElementById('minorLabel'),
+    major: document.getElementById('majorLabel'),
+    grand: document.getElementById('grandLabel')
+  };
+  const statusEl = document.getElementById('status');
+  const panel = document.getElementById('panel');
+
+  // Last canonical server snapshot per tier. Local ticks never invent
+  // winner/closed. TIME LEFT TONIGHT is wall-clock projected. Jackpot
+  // ETA is a per-card closed-loop servo: poll ETA is aged every frame;
+  // commandedRate is a continuous function of error vs liveServerEta;
+  // currentRate uses fast first-order above 1x and 0.08 x/s below 1x.
+  // Extreme positive error is clipped to live + MAX_MANAGEABLE_ERROR_SEC.
+  const snap = {
+    minor: null,
+    major: null,
+    grand: null
+  };
+
+  const HELD_STORAGE_KEY = 'jackpot.ticker.heldCountdown';
+  const HELD_TTL_MS = 6 * 60 * 60 * 1000;
+  let liveNumbersFrozen = false;
+  const heldCountdown = {
+    minor: null,
+    major: null,
+    grand: null
+  };
+
+  const displayedRemaining = {
+    minor: null,
+    major: null,
+    grand: null
+  };
+
+  const MIN_COUNTDOWN_RATE = 0.0;
+  const ERROR_DEADBAND_SEC = 2;
+  const MAX_FAST_RATE = 20;
+  const FAST_CURVE_TIME_SEC = 180;
+  const SLOW_ZERO_ERROR_SEC = 120;
+  const TAU_FAST_SEC = 1.2;
+  const MAX_RATE_DECEL_PER_SEC = 0.08;
+  const MAX_MANAGEABLE_CATCHUP_SEC = 60;
+  const MAX_MANAGEABLE_ERROR_SEC = (MAX_FAST_RATE - 1) * MAX_MANAGEABLE_CATCHUP_SEC;
+
+  const ETA_DEBUG = new URLSearchParams(location.search).get('debug') === 'eta';
+
+  function createCountdownState() {
+    return {
+      displayedRemainingSec: null,
+      currentRate: 1,
+      commandedRate: 1,
+      lastFrameMs: 0,
+      etaSecondsAtPoll: null,
+      receivedAtPerfMs: 0,
+      liveServerEtaSec: null,
+      errorSec: null,
+      unavailableReason: null,
+      holdingInsufficientRate: false,
+      lastSafetyClip: false,
+      lastSafetyClipSec: null
+    };
+  }
+
+  const countdown = {
+    minor: createCountdownState(),
+    major: createCountdownState(),
+    grand: createCountdownState()
+  };
+
+  function persistHeldCountdown() {
+    try {
+      localStorage.setItem(HELD_STORAGE_KEY, JSON.stringify(heldCountdown));
+    } catch (e) {}
+  }
+
+  function validHeldSeconds(value) {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0;
+  }
+
+  function loadHeldCountdown() {
+    try {
+      const raw = localStorage.getItem(HELD_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return;
+      let dirty = false;
+      for (const tier of ['minor', 'major', 'grand']) {
+        const v = parsed[tier];
+        const savedAt = v && typeof v.savedAt === 'number' ? v.savedAt : 0;
+        const fresh = savedAt > 0 && (Date.now() - savedAt) <= HELD_TTL_MS;
+        if (v && validHeldSeconds(v.seconds) && fresh) {
+          heldCountdown[tier] = { seconds: v.seconds, savedAt: savedAt };
+        } else {
+          heldCountdown[tier] = null;
+          if (v != null) dirty = true;
+        }
+      }
+      if (dirty) persistHeldCountdown();
+    } catch (e) {}
+  }
+  loadHeldCountdown();
+
+  const MAX_DISPLAY_HOURS = 99;
+
+  function normalizeStatus(raw) {
+    if (raw === 'countdown') return 'active';
+    if (raw === 'active' || raw === 'closed' || raw === 'winner') return raw;
+    return null;
+  }
+
+  function projectedSeconds(value, receivedAtMs) {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) return null;
+    return Number(value) - (Date.now() - receivedAtMs) / 1000;
+  }
+
+  function persistDisplayedSeconds(tier, seconds) {
+    if (!validHeldSeconds(seconds)) return;
+    const prev = heldCountdown[tier];
+    if (prev && validHeldSeconds(prev.seconds) && prev.seconds === seconds) return;
+    heldCountdown[tier] = { seconds: seconds, savedAt: Date.now() };
+    persistHeldCountdown();
+  }
+
+  function resetCountdown(tier) {
+    countdown[tier] = createCountdownState();
+    heldCountdown[tier] = null;
+    displayedRemaining[tier] = null;
+    persistHeldCountdown();
+  }
+
+  function clearHeldCountdown(tier) {
+    resetCountdown(tier);
+  }
+
+  function clampRate(value) {
+    if (!Number.isFinite(value)) return MIN_COUNTDOWN_RATE;
+    return Math.max(MIN_COUNTDOWN_RATE, Math.min(MAX_FAST_RATE, value));
+  }
+
+  function commandedRateFromError(errorSec) {
+    if (!Number.isFinite(errorSec)) return 1;
+    if (Math.abs(errorSec) <= ERROR_DEADBAND_SEC) return 1;
+    if (errorSec > ERROR_DEADBAND_SEC) {
+      const positiveErrorSec = errorSec - ERROR_DEADBAND_SEC;
+      return clampRate(
+        1 + (MAX_FAST_RATE - 1) * (1 - Math.exp(-positiveErrorSec / FAST_CURVE_TIME_SEC))
+      );
+    }
+    const negativeErrorSec = (-errorSec) - ERROR_DEADBAND_SEC;
+    const slowRangeSec = SLOW_ZERO_ERROR_SEC - ERROR_DEADBAND_SEC;
+    if (!(slowRangeSec > 0)) return 0;
+    return clampRate(Math.max(0, 1 - negativeErrorSec / slowRangeSec));
+  }
+
+  function slewCurrentRate(currentRate, commandedRate, dtSec) {
+    if (!(dtSec > 0)) return clampRate(currentRate);
+    const k = 1 - Math.exp(-dtSec / TAU_FAST_SEC);
+    if (commandedRate > currentRate) {
+      return clampRate(currentRate + (commandedRate - currentRate) * k);
+    }
+    if (currentRate > 1 && commandedRate < currentRate) {
+      const fastTarget = Math.max(1, commandedRate);
+      let next = currentRate + (fastTarget - currentRate) * k;
+      if (next <= 1.01) next = 1;
+      return clampRate(next);
+    }
+    if (currentRate <= 1 && commandedRate < currentRate) {
+      return clampRate(
+        currentRate - Math.min(currentRate - commandedRate, MAX_RATE_DECEL_PER_SEC * dtSec)
+      );
+    }
+    return clampRate(currentRate);
+  }
+
+  function liveServerEtaSec(st) {
+    if (!validHeldSeconds(st.etaSecondsAtPoll) || !(st.receivedAtPerfMs > 0)) return null;
+    const elapsedSincePollSec = Math.max(0, (performance.now() - st.receivedAtPerfMs) / 1000);
+    return Math.max(0, st.etaSecondsAtPoll - elapsedSincePollSec);
+  }
+
+  function existingCountdownSec(tier) {
+    const st = countdown[tier];
+    if (validHeldSeconds(st.displayedRemainingSec)) return st.displayedRemainingSec;
+    const held = heldCountdown[tier];
+    if (held && validHeldSeconds(held.seconds)) return held.seconds;
+    return null;
+  }
+
+  function acceptValidServerEta(tier, etaSec) {
+    const st = countdown[tier];
+    st.holdingInsufficientRate = false;
+    st.unavailableReason = null;
+    st.etaSecondsAtPoll = etaSec;
+    st.receivedAtPerfMs = performance.now();
+    st.liveServerEtaSec = etaSec;
+    st.errorSec = null;
+    st.lastSafetyClip = false;
+
+    const existing = existingCountdownSec(tier);
+    const displayedNow = st.displayedRemainingSec;
+    if (existing == null || displayedNow === 0 || (typeof displayedNow === 'number' && displayedNow <= 0)) {
+      st.displayedRemainingSec = etaSec;
+      st.currentRate = 1;
+      st.commandedRate = 1;
+      st.lastSafetyClipSec = null;
+      return;
+    }
+
+    let displayed = existing;
+    const positiveError = displayed - etaSec;
+    if (positiveError > MAX_MANAGEABLE_ERROR_SEC) {
+      displayed = etaSec + MAX_MANAGEABLE_ERROR_SEC;
+      st.lastSafetyClip = true;
+      st.lastSafetyClipSec = positiveError;
+      persistDisplayedSeconds(tier, displayed);
+    }
+    st.displayedRemainingSec = displayed;
+  }
+
+  function beginInsufficientRateHold(tier) {
+    const st = countdown[tier];
+    const existing = existingCountdownSec(tier);
+    st.unavailableReason = 'insufficient_rate';
+    st.etaSecondsAtPoll = null;
+    st.receivedAtPerfMs = 0;
+    st.liveServerEtaSec = null;
+    st.errorSec = null;
+    if (existing == null) {
+      st.holdingInsufficientRate = false;
+      st.displayedRemainingSec = null;
+      st.commandedRate = 0;
+      st.currentRate = 0;
+      return;
+    }
+    st.holdingInsufficientRate = true;
+    st.displayedRemainingSec = existing;
+    st.commandedRate = 0;
+    persistDisplayedSeconds(tier, existing);
+  }
+
+  function applyActiveEta(tier, etaSec, reason) {
+    const reasonKey = reason ? String(reason).trim() : '';
+    if (validHeldSeconds(etaSec)) {
+      acceptValidServerEta(tier, etaSec);
+      return;
+    }
+    if (reasonKey === 'insufficient_rate') {
+      beginInsufficientRateHold(tier);
+      return;
+    }
+    resetCountdown(tier);
+    countdown[tier].unavailableReason = reasonKey || null;
+  }
+
+  function stepCardCountdown(tier, nowMs) {
+    const st = countdown[tier];
+    if (st.displayedRemainingSec === null) {
+      st.lastFrameMs = nowMs;
+      st.liveServerEtaSec = liveServerEtaSec(st);
+      st.errorSec = null;
+      return null;
+    }
+    if (!st.lastFrameMs) {
+      st.lastFrameMs = nowMs;
+      st.liveServerEtaSec = liveServerEtaSec(st);
+      return st.displayedRemainingSec;
+    }
+
+    const dt = Math.min(0.25, Math.max(0, (nowMs - st.lastFrameMs) / 1000));
+    st.lastFrameMs = nowMs;
+
+    if (liveNumbersFrozen || st.holdingInsufficientRate) {
+      st.liveServerEtaSec = liveNumbersFrozen ? liveServerEtaSec(st) : null;
+      st.errorSec = null;
+      st.commandedRate = 0;
+    } else {
+      const live = liveServerEtaSec(st);
+      st.liveServerEtaSec = live;
+      if (live == null) {
+        st.errorSec = null;
+      } else {
+        st.errorSec = st.displayedRemainingSec - live;
+        st.commandedRate = commandedRateFromError(st.errorSec);
+      }
+    }
+
+    st.currentRate = slewCurrentRate(st.currentRate, st.commandedRate, dt);
+    const next = st.displayedRemainingSec - st.currentRate * dt;
+    st.displayedRemainingSec = next < st.displayedRemainingSec ? next : st.displayedRemainingSec;
+    if (st.displayedRemainingSec < 0) st.displayedRemainingSec = 0;
+
+    const prevHeld = heldCountdown[tier] && heldCountdown[tier].seconds;
+    if (validHeldSeconds(st.displayedRemainingSec) && (
+      !validHeldSeconds(prevHeld) || Math.round(prevHeld) !== Math.round(st.displayedRemainingSec)
+    )) {
+      persistDisplayedSeconds(tier, st.displayedRemainingSec);
+    }
+    return st.displayedRemainingSec;
+  }
+
+  window.addEventListener('pagehide', () => {
+    for (const tier of ['minor', 'major', 'grand']) {
+      const displayed = countdown[tier].displayedRemainingSec;
+      if (validHeldSeconds(displayed)) {
+        heldCountdown[tier] = { seconds: displayed, savedAt: Date.now() };
+      }
+    }
+    persistHeldCountdown();
+  });
+
+  function formatHMS(totalSecondsRounded) {
+    const s = totalSecondsRounded;
+    const h = Math.floor(s / 3600);
+    if (h >= MAX_DISPLAY_HOURS) return MAX_DISPLAY_HOURS + 'h+';
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+    return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+  }
+
+  function formatCountdown(totalSeconds) {
+    if (totalSeconds === null || totalSeconds <= 0) return '-';
+    const s = Math.round(totalSeconds);
+    if (s <= 0) return '-';
+    return formatHMS(s);
+  }
+
+  // "-" when there is no valid ETA and we are not holding a previous
+  // countdown (startup insufficient_rate, pending_public_reveal).
+  function formatJackpotEta(displayed, serverEta, holding, reason) {
+    if (reason === 'pending_public_reveal') return 'CHOOSING WINNER...';
+    const canShowHeld = holding && validHeldSeconds(displayed);
+    if (!validHeldSeconds(serverEta) && !canShowHeld) return '-';
+    const n = (typeof displayed === 'number' && Number.isFinite(displayed))
+      ? displayed
+      : serverEta;
+    if (!Number.isFinite(n) || n <= 0) return canShowHeld ? formatHMS(Math.max(1, Math.round(displayed))) : '-';
+    return formatHMS(Math.max(1, Math.round(Math.max(n, 0))));
+  }
+
+  function formatMinimumBill(mode, minSpendGel) {
+    if (mode !== 'min_spend_threshold') return '';
+    const n = Number(minSpendGel);
+    if (!Number.isFinite(n) || n <= 0) return '';
+    const amount = Number.isInteger(n) ? String(n) : String(n);
+    return 'MINIMUM BILL: ' + amount + ' GEL';
+  }
+
+  function venueClockNow(timeZone) {
+    const tz = timeZone != null ? String(timeZone).trim() : '';
+    if (!tz) return null;
+    try {
+      const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: tz,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23'
+      }).formatToParts(new Date());
+      const get = (type) => {
+        const part = parts.find(p => p.type === type);
+        return part ? Number(part.value) : NaN;
+      };
+      const hour = get('hour');
+      const minute = get('minute');
+      const second = get('second');
+      if (![hour, minute, second].every(Number.isFinite)) return null;
+      return { hour, minute, second };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function toMinutesClock(value) {
+    if (value === null || value === undefined || value === '') return NaN;
+    if (typeof value === 'number') return Math.round(value * 24 * 60);
+    const str = String(value);
+    const parts = str.split(':').map(Number);
+    if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) return parts[0] * 60 + parts[1];
+    return NaN;
+  }
+
+  function hhmmssToDaySecondsClock(value) {
+    if (value == null || value === '') return NaN;
+    if (typeof value === 'number') return Math.round(value * 24 * 60 * 60);
+    const str = String(value);
+    const parts = str.split(':').map(Number);
+    if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      const s = parts.length >= 3 && !isNaN(parts[2]) ? parts[2] : 0;
+      return parts[0] * 3600 + parts[1] * 60 + s;
+    }
+    return NaN;
+  }
+
+  function isWithinWindowSecondsClock(nowSec, startSec, endSec) {
+    if (!Number.isFinite(startSec) || !Number.isFinite(endSec)) return true;
+    if (startSec === endSec) return nowSec >= startSec && nowSec < startSec + 60;
+    if (startSec < endSec) return nowSec >= startSec && nowSec < endSec;
+    return nowSec >= startSec || nowSec < endSec;
+  }
+
+  function secondsUntilActiveHoursClose() {
+    const startVal = CONFIG.active_hours_start;
+    const endVal = CONFIG.active_hours_end;
+    if (!startVal || !endVal) return null;
+    const clock = venueClockNow(CONFIG.timezone);
+    if (!clock) return null;
+    const start = hhmmssToDaySecondsClock(startVal);
+    const end = hhmmssToDaySecondsClock(endVal);
+    if (isNaN(start) || isNaN(end)) return null;
+    const nowSec = clock.hour * 3600 + clock.minute * 60 + (clock.second || 0);
+    if (!isWithinWindowSecondsClock(nowSec, start, end)) return 0;
+    if (start === end) return (start + 60) - nowSec;
+    if (start < end) return end - nowSec;
+    if (nowSec < end) return end - nowSec;
+    return (86400 - nowSec) + end;
+  }
+
+  function showContinuesNextEvent(liveServerEtaSec, windowClosesInSec, displayedRemainingSec) {
+    return Number.isFinite(liveServerEtaSec)
+      && Number.isFinite(windowClosesInSec)
+      && liveServerEtaSec > windowClosesInSec
+      && Number.isFinite(displayedRemainingSec)
+      && displayedRemainingSec > windowClosesInSec;
+  }
+
+  function updateContinuesNextEvent(tier, liveServerEtaSec, displayedRemainingSec) {
+    const windowClosesInSec = secondsUntilActiveHoursClose();
+    if (showContinuesNextEvent(liveServerEtaSec, windowClosesInSec, displayedRemainingSec)) {
+      carryEls[tier].classList.add('show');
+    } else {
+      hideCarry(tier);
+    }
+  }
+
+  function fmtDebugNum(value, digits) {
+    if (value == null || !Number.isFinite(value)) return 'null';
+    return value.toFixed(digits);
+  }
+
+  function updateEtaDebug() {
+    let el = document.getElementById('etaDebug');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'etaDebug';
+      el.style.cssText = [
+        'position:fixed',
+        'right:8px',
+        'top:8px',
+        'z-index:80',
+        'background:rgba(0,0,0,0.82)',
+        'color:#9f9',
+        'font:12px/1.35 monospace',
+        'padding:8px 10px',
+        'white-space:pre',
+        'pointer-events:none',
+        'max-width:46vw'
+      ].join(';');
+      document.body.appendChild(el);
+    }
+    const lines = [];
+    for (const tier of ['minor', 'major', 'grand']) {
+      const st = countdown[tier];
+      const pace = st.currentRate < 0.05
+        ? 'frozen'
+        : st.currentRate < 0.5
+          ? 'slow'
+          : st.currentRate < 1.4
+            ? 'normal'
+            : 'fast';
+      lines.push(
+        tier.toUpperCase() + ' [' + pace + ']',
+        '  displayedRemainingSec=' + fmtDebugNum(st.displayedRemainingSec, 2),
+        '  etaSecondsAtPoll=' + fmtDebugNum(st.etaSecondsAtPoll, 2),
+        '  liveServerEtaSec=' + fmtDebugNum(st.liveServerEtaSec, 2),
+        '  errorSec=' + fmtDebugNum(st.errorSec, 2),
+        '  commandedRate=' + st.commandedRate.toFixed(3),
+        '  currentRate=' + st.currentRate.toFixed(3),
+        '  MAX_FAST_RATE=' + MAX_FAST_RATE,
+        '  safetyClip=' + (st.lastSafetyClip ? 'yes' : 'no'),
+        '  lastSafetyClipSec=' + fmtDebugNum(st.lastSafetyClipSec, 1),
+        '  unavailableReason=' + (st.unavailableReason == null ? 'null' : st.unavailableReason)
+      );
+    }
+    el.textContent = lines.join('\n');
+  }
+
+  const frameEls = {
+    minor: document.querySelector('#minorNumber').parentElement,
+    major: document.querySelector('#majorNumber').parentElement,
+    grand: document.querySelector('#grandNumber').parentElement
+  };
+
+  function hideCarry(tier) {
+    carryEls[tier].classList.remove('show');
+  }
+
+  function hideCaption(tier) {
+    captionEls[tier].classList.remove('show');
+  }
+
+  function hideWinnerLabel(tier) {
+    winnerLabelEls[tier].classList.remove('show');
+  }
+
+  function winnerTableText(raw) {
+    if (raw === null || raw === undefined) return '';
+    const text = String(raw).trim();
+    return text ? text : '';
+  }
+
+  function renderTier(tier) {
+    const s = snap[tier];
+    if (!s) {
+      displayedRemaining[tier] = null;
+      const flash = heldCountdown[tier];
+      els[tier].textContent = (flash && validHeldSeconds(flash.seconds))
+        ? formatHMS(Math.max(1, Math.round(flash.seconds)))
+        : '-';
+      windowWrapEls[tier].classList.remove('show');
+      hideCarry(tier);
+      hideCaption(tier);
+      hideWinnerLabel(tier);
+      return null;
+    }
+    if (s.status === 'winner') {
+      displayedRemaining[tier] = null;
+      clearHeldCountdown(tier);
+      const table = winnerTableText(s.winnerTable);
+      if (table) {
+        winnerLabelEls[tier].classList.add('show');
+        els[tier].textContent = 'TABLE ' + table;
+      } else {
+        hideWinnerLabel(tier);
+        els[tier].textContent = 'WINNER';
+      }
+      windowWrapEls[tier].classList.remove('show');
+      hideCarry(tier);
+      hideCaption(tier);
+      return null;
+    }
+    if (s.status === 'closed') {
+      displayedRemaining[tier] = null;
+      clearHeldCountdown(tier);
+      els[tier].textContent = 'CLOSED';
+      windowWrapEls[tier].classList.remove('show');
+      hideCarry(tier);
+      hideCaption(tier);
+      hideWinnerLabel(tier);
+      return null;
+    }
+
+    hideWinnerLabel(tier);
+    captionEls[tier].classList.add('show');
+    const remaining = countdown[tier].displayedRemainingSec;
+    displayedRemaining[tier] = remaining;
+    els[tier].textContent = formatJackpotEta(
+      remaining,
+      s.etaSeconds,
+      countdown[tier].holdingInsufficientRate,
+      s.unavailableReason
+    );
+
+    const windowRemaining = projectedSeconds(s.windowSeconds, s.receivedAtMs);
+    if (windowRemaining === null || windowRemaining <= 0) {
+      windowWrapEls[tier].classList.remove('show');
+    } else {
+      windowWrapEls[tier].classList.add('show');
+      windowEls[tier].textContent = formatCountdown(windowRemaining);
+    }
+    updateContinuesNextEvent(tier, s.etaSeconds, remaining);
+    return remaining;
+  }
+
+  function tickCountdown() {
+    for (const tier of ['minor', 'major', 'grand']) {
+      renderTier(tier);
+    }
+  }
+  setInterval(tickCountdown, 1000);
+
+  const URGENCY_WINDOW_SECONDS = 30 * 60;
+  const DEFAULT_FRAME_SHADOW = '0 0 40px var(--c), inset 0 0 25px rgba(0,0,0,0.8)';
+
+  function glowLoop(timestamp) {
+    const tSec = timestamp / 1000;
+    for (const tier of ['minor', 'major', 'grand']) {
+      const s = snap[tier];
+      const status = s && s.status;
+
+      if (!s || status === 'closed') {
+        frameEls[tier].style.boxShadow = DEFAULT_FRAME_SHADOW;
+        continue;
+      }
+
+      if (status === 'winner') {
+        const freqHz = 0.32;
+        const pulse = (Math.sin(tSec * freqHz * Math.PI * 2) + 1) / 2;
+        const glow = Math.round(90 + pulse * 50);
+        const core = Math.round(32 + pulse * 12);
+        const inset = Math.round(glow * 0.55);
+        frameEls[tier].style.boxShadow =
+          `0 0 ${core}px var(--c), 0 0 ${glow}px var(--c), inset 0 0 ${inset}px rgba(0,0,0,0.7)`;
+        continue;
+      }
+
+      if (status !== 'active') {
+        frameEls[tier].style.boxShadow = DEFAULT_FRAME_SHADOW;
+        continue;
+      }
+
+      const remaining = stepCardCountdown(tier, timestamp);
+      displayedRemaining[tier] = remaining;
+      const holding = countdown[tier].holdingInsufficientRate;
+      els[tier].textContent = formatJackpotEta(remaining, s.etaSeconds, holding, s.unavailableReason);
+      updateContinuesNextEvent(tier, s.etaSeconds, remaining);
+      if (!validHeldSeconds(s.etaSeconds) && !holding) {
+        frameEls[tier].style.boxShadow = DEFAULT_FRAME_SHADOW;
+        continue;
+      }
+
+      const glowSecs = (remaining !== null && remaining > 0)
+        ? remaining
+        : countdown[tier].liveServerEtaSec;
+      if (!(glowSecs > 0)) {
+        frameEls[tier].style.boxShadow =
+          '0 0 28px var(--c), 0 0 100px var(--c), inset 0 0 42px rgba(0,0,0,0.75)';
+        continue;
+      }
+
+      const urgency = Math.max(0, Math.min(1, 1 - glowSecs / URGENCY_WINDOW_SECONDS));
+      const freqHz = 0.35 + urgency * 0.45;
+      const pulse = (Math.sin(tSec * freqHz * Math.PI * 2) + 1) / 2;
+      const glow = Math.round(40 + urgency * 55 + pulse * (18 + urgency * 72));
+      const core = Math.round(16 + urgency * 28 + pulse * (8 + urgency * 10));
+      const inset = Math.round(glow * 0.6);
+      frameEls[tier].style.boxShadow =
+        `0 0 ${core}px var(--c), 0 0 ${glow}px var(--c), inset 0 0 ${inset}px rgba(0,0,0,0.75)`;
+    }
+    if (ETA_DEBUG) updateEtaDebug();
+    requestAnimationFrame(glowLoop);
+  }
+  requestAnimationFrame(glowLoop);
+
+  async function fetchLiveNumbers(url) {
+    if (!url) return;
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      const data = await res.json();
+      const receivedAtMs = Date.now();
+      const weekdayPaused = data.jackpot_paused === true && data.pause_reason === 'inactive_weekday';
+      for (const tier of ['minor', 'major', 'grand']) {
+        const status = weekdayPaused ? 'closed' : normalizeStatus(data[tier + '_status']);
+        if (!status) continue;
+
+        let eta = data[tier + '_eta_seconds'];
+        if (eta === null || eta === undefined || eta === '') eta = null;
+        else {
+          eta = Number(eta);
+          if (!Number.isFinite(eta) || eta <= 0) eta = null;
+        }
+
+        let windowSeconds = data[tier + '_window_closes_in_seconds'];
+        if (windowSeconds === null || windowSeconds === undefined || windowSeconds === '') {
+          windowSeconds = null;
+        } else {
+          windowSeconds = Number(windowSeconds);
+          if (!Number.isFinite(windowSeconds)) windowSeconds = null;
+        }
+
+        snap[tier] = {
+          status,
+          winnerTable: data[tier + '_winner_table'] || null,
+          etaSeconds: status === 'active' ? eta : null,
+          windowSeconds: status === 'active' ? windowSeconds : null,
+          receivedAtMs,
+          unavailableReason: status === 'active'
+            ? (data[tier + '_eta_unavailable_reason'] || null)
+            : null
+        };
+        if (status === 'active') {
+          applyActiveEta(tier, eta, snap[tier].unavailableReason);
+        } else {
+          resetCountdown(tier);
+        }
+      }
+      liveNumbersFrozen = false;
+      tickCountdown();
+      statusEl.textContent = 'Live - last update ' + new Date().toLocaleTimeString();
+    } catch (err) {
+      liveNumbersFrozen = true;
+      statusEl.textContent = 'Live numbers error: ' + err.message;
+    }
+  }
+
+  let liveTimer = null;
+  let configTimer = null;
+  let CONFIG = { live_ticker_polling_seconds: 10 };
+
+  function startLiveNumbersLoop(liveUrl) {
+    fetchLiveNumbers(liveUrl);
+    const pollMs = (CONFIG.live_ticker_polling_seconds || 10) * 1000;
+    liveTimer = setInterval(() => fetchLiveNumbers(liveUrl), pollMs);
+  }
+
+  async function startPolling(liveUrl, configUrl) {
+    stopPolling();
+    if (configUrl) {
+      await fetchConfigFull(configUrl);
+      configTimer = setInterval(() => fetchConfigFull(configUrl), 5 * 60 * 1000);
+    }
+    startLiveNumbersLoop(liveUrl);
+  }
+  function stopPolling() {
+    if (liveTimer) clearInterval(liveTimer);
+    if (configTimer) clearInterval(configTimer);
+    liveTimer = null;
+    configTimer = null;
+  }
+
+  const eligibilityEls = {
+    minor: document.getElementById('minorEligibility'),
+    major: document.getElementById('majorEligibility'),
+    grand: document.getElementById('grandEligibility')
+  };
+
+  function updateEligibilityCaptions(data) {
+    const mode = data.pool_win_eligibility || 'any_active_table';
+    for (const tier of ['minor', 'major', 'grand']) {
+      const t = (data.tiers && data.tiers[tier]) || {};
+      eligibilityEls[tier].textContent = formatMinimumBill(mode, t.min_spend_gel);
+    }
+  }
+
+  async function fetchConfigFull(url) {
+    if (!url) return;
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      const data = await res.json();
+      if (data) {
+        CONFIG = { ...CONFIG, ...data };
+        if (data.tiers) {
+          if (data.tiers.minor?.label) labelEls.minor.textContent = data.tiers.minor.label;
+          if (data.tiers.major?.label) labelEls.major.textContent = data.tiers.major.label;
+          if (data.tiers.grand?.label) labelEls.grand.textContent = data.tiers.grand.label;
+        }
+        updateEligibilityCaptions(data);
+      }
+    } catch (err) {
+      statusEl.textContent = 'Config error: ' + err.message;
+    }
+  }
+
+  document.getElementById('connectBtn').addEventListener('click', () => {
+    const configUrl = document.getElementById('configUrl').value.trim();
+    const liveUrl = document.getElementById('liveUrl').value.trim();
+    startPolling(liveUrl, configUrl);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 't') panel.classList.toggle('open');
+  });
+
+  const params = new URLSearchParams(location.search);
+  if (params.get('config')) document.getElementById('configUrl').value = params.get('config');
+  if (params.get('live')) document.getElementById('liveUrl').value = params.get('live');
+  if (params.get('config') && params.get('live')) {
+    startPolling(params.get('live'), params.get('config'));
+  }
+})();
+</script>
+</body>
+</html>
